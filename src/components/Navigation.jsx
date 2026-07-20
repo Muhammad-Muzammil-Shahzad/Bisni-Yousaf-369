@@ -94,7 +94,7 @@ const Navigation = () => {
       <div className="p-4 border-b border-slate-700/50">
         <div className="flex items-center justify-center flex-col gap-3">
           <img 
-            src="public/logo.png" 
+            src="logo.png" 
             // alt="Logo" 
             className="w-[60%] h-50% object-contain"
             onError={(e) => {
