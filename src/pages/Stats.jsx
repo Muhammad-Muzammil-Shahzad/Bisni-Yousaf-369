@@ -135,6 +135,25 @@ const DashboardStats = () => {
       );
   };
 
+  // Calculate total orders for a specific category
+  const getCategoryTotalOrders = (category) => {
+    if (!sessionInvoices.length) return 0;
+    return sessionInvoices.filter(inv => inv.employeeCategory === category).length;
+  };
+
+  // Calculate total revenue for a specific category
+  const getCategoryTotalRevenue = (category) => {
+    if (!sessionInvoices.length) return 0;
+    return sessionInvoices
+      .filter(inv => inv.employeeCategory === category)
+      .reduce((sum, inv) => sum + (inv.grandTotalAmount || 0), 0);
+  };
+
+  // Calculate total commission for a specific category
+  const getCategoryTotalCommission = (category, data) => {
+    return data?.totalCommission || 0;
+  };
+
   const activeSessionStats = getActiveSessionStats();
 
   const formatCurrency = (amount) => {
@@ -175,18 +194,6 @@ const DashboardStats = () => {
         {/* Header */}
         <div className="text-center mb-4 sm:mb-5">
           <h1 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">DASHBOARD ANALYTICS</h1>
-          <div className="mt-2 sm:mt-3 flex flex-col xs:flex-row justify-center gap-2">
-            <button onClick={() => { fetchStats(); fetchActiveSession(); fetchSessionInvoices(); }}
-              className="w-full xs:w-auto px-3 py-1.5 bg-white text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 text-xs font-medium">
-              🔄 Refresh
-            </button>
-            <button onClick={() => setShowFilters(!showFilters)}
-              className={`w-full xs:w-auto px-3 py-1.5 border rounded-md text-xs font-medium ${
-                showFilters ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}>
-              🔍 {showFilters ? 'Hide' : 'Filters'}
-            </button>
-          </div>
         </div>
 
         {/* Alert Messages */}
@@ -209,50 +216,6 @@ const DashboardStats = () => {
           </div>
         )}
 
-        {/* Filters Panel */}
-        {showFilters && (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden mb-3 sm:mb-4">
-            <div className="bg-linear-to-r from-blue-600 to-cyan-600 px-3 sm:px-4 py-2">
-              <h2 className="text-xs sm:text-sm font-semibold text-white">Filter Statistics</h2>
-            </div>
-            <div className="p-2 sm:p-3">
-              <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} 
-                  className="px-2 py-1.5 border border-gray-300 rounded-md text-xs w-full">
-                  <option value="all">All Time</option>
-                  <option value="date">Specific Date</option>
-                  <option value="range">Date Range</option>
-                </select>
-                {filterType === 'date' && (
-                  <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} 
-                    className="px-2 py-1.5 border border-gray-300 rounded-md text-xs w-full" />
-                )}
-                {filterType === 'range' && (
-                  <>
-                    <input type="date" value={filterStartDate} onChange={(e) => setFilterStartDate(e.target.value)} 
-                      className="px-2 py-1.5 border border-gray-300 rounded-md text-xs w-full" />
-                    <input type="date" value={filterEndDate} onChange={(e) => setFilterEndDate(e.target.value)} 
-                      className="px-2 py-1.5 border border-gray-300 rounded-md text-xs w-full" />
-                  </>
-                )}
-                <input type="text" value={filterEmployeeCategory} onChange={(e) => setFilterEmployeeCategory(e.target.value)} 
-                  placeholder="Category" className="px-2 py-1.5 border border-gray-300 rounded-md text-xs w-full" />
-                <input type="text" value={filterEmployeeName} onChange={(e) => setFilterEmployeeName(e.target.value)} 
-                  placeholder="Employee name" className="px-2 py-1.5 border border-gray-300 rounded-md text-xs w-full" />
-              </div>
-              <div className="flex flex-col xs:flex-row justify-end gap-2">
-                <button onClick={handleClearFilters} 
-                  className="w-full xs:w-auto px-3 py-1.5 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 text-xs">
-                  Clear
-                </button>
-                <button onClick={handleFilterApply} 
-                  className="w-full xs:w-auto px-4 py-1.5 bg-linear-to-r from-blue-600 to-cyan-600 text-white rounded-md hover:from-blue-700 hover:to-cyan-700 text-xs">
-                  Apply
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Loading State */}
         {loading && !stats && (
@@ -266,33 +229,52 @@ const DashboardStats = () => {
         {/* Stats Content */}
         {stats && (
           <div className="space-y-3 sm:space-y-4">
-            {/* Category-wise Sections with Stats and Graphs */}
+            {/* Category-wise Sections with Separate Boxes for Orders, Revenue, and Commission */}
             {Object.keys(stats.commissionByCategory).length > 0 ? (
-              <div className="space-y-3 sm:space-y-4">
+              <div className="space-y-4 sm:space-y-5">
                 {Object.entries(stats.commissionByCategory).map(([category, data]) => {
-                  const categoryItemsSold = getCategoryItemsSold(category);
+                  const categoryTotalOrders = getCategoryTotalOrders(category);
+                  const categoryTotalRevenue = getCategoryTotalRevenue(category);
+                  const categoryTotalCommission = getCategoryTotalCommission(category, data);
                   
                   return (
-                    <div key={category} className="bg-white rounded-lg shadow-md overflow-hidden">
-                      <div className="bg-linear-to-r from-blue-600 to-cyan-600 px-3 sm:px-4 py-2 sm:py-2.5">
-                        <div className="flex items-center justify-between">
-                          <h2 className="text-xs sm:text-sm font-semibold text-white truncate mr-2">{category} ({data.employeeCount} employees)</h2>
+                    <div key={category}>
+                      {/* Category Section */}
+                     
+
+                      {/* Separate Boxes for Orders, Revenue, and Commission */}
+                      <div className="flex items-center justify-evenly">
+                        {/* Total Orders Box */}
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                          <div className="bg-blue-500 px-3 py-2 w-45">
+                            <h3 className="text-xs font-semibold text-white">Total Orders - {category}</h3>
+                          </div>
+                          <div className="p-3 sm:p-4 text-center">
+                            <p className="text-2xl sm:text-xl font-bold text-blue-600">{categoryTotalOrders}</p>
+                            <p className="text-xs text-gray-600 mt-1">Orders</p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row items-center justify-evenly gap-2 sm:gap-3 p-2 sm:p-3">
-                        <div className="bg-gray-50 w-full sm:w-70 rounded-md p-2 sm:p-2.5 text-center border-l-4 border-blue-500">
-                          <p className="text-xs text-gray-600">Total Orders</p>
-                          <p className="text-base sm:text-lg font-bold text-gray-900">
-                            {sessionInvoices.filter(inv => inv.employeeCategory === category).length}
-                          </p>
+
+                        {/* Total Revenue Box */}
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                          <div className="bg-blue-500 px-3 py-2 w-45">
+                            <h3 className="text-xs font-semibold text-white">Total Revenue - {category}</h3>
+                          </div>
+                          <div className="p-3 sm:p-4 text-center">
+                            <p className="text-2xl sm:text-xl font-bold text-blue-600">Rs. {formatCurrency(categoryTotalRevenue)}</p>
+                            <p className="text-xs text-gray-600 mt-1">Revenue</p>
+                          </div>
                         </div>
-                        <div className="bg-gray-50 w-full sm:w-70 rounded-md p-2 sm:p-2.5 text-center border-l-4 border-green-500">
-                          <p className="text-xs text-gray-600">Total Revenue</p>
-                          <p className="text-base sm:text-lg font-bold text-green-600">Rs. {formatCurrency(data.totalSales)}</p>
-                        </div>
-                        <div className="bg-gray-50 w-full sm:w-70 rounded-md p-2 sm:p-2.5 text-center border-l-4 border-purple-500">
-                          <p className="text-xs text-gray-600">Total Commission</p>
-                          <p className="text-base sm:text-lg font-bold text-purple-600">Rs. {formatCurrency(data.totalCommission)}</p>
+
+                        {/* Total Commission Box */}
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                          <div className="bg-blue-500 px-3 py-2 w-45">
+                            <h3 className="text-xs font-semibold text-white">Total Commission - {category}</h3>
+                          </div>
+                          <div className="p-3 sm:p-4 text-center">
+                            <p className="text-2xl sm:text-xl font-bold text-blue-600">Rs. {formatCurrency(categoryTotalCommission)}</p>
+                            <p className="text-xs text-gray-600 mt-1">Commission</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -305,134 +287,6 @@ const DashboardStats = () => {
                 <p className="mt-2 text-xs text-gray-500">No commission data available</p>
               </div>
             )}
-
-            {/* Commission by Category */}
-            {Object.keys(stats.commissionByCategory).length > 0 && (
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="bg-linear-to-r from-blue-600 to-cyan-600 px-3 sm:px-4 py-2">
-                  <h2 className="text-xs sm:text-sm font-semibold text-white">Commission by Category</h2>
-                </div>
-                <div className="p-2 sm:p-3">
-                  <div className="space-y-2 sm:space-y-3">
-                    {Object.entries(stats.commissionByCategory).map(([category, data]) => (
-                      <div key={category} className="bg-gray-50 rounded-md p-2 sm:p-3">
-                        <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-1 mb-2">
-                          <h4 className="text-xs font-semibold text-gray-900">{category}</h4>
-                          <span className="text-xs text-gray-500">{data.employeeCount} employee(s)</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div>
-                            <p className="text-xs text-gray-600">Sales Amount</p>
-                            <p className="text-sm font-bold text-blue-600 truncate">Rs. {formatCurrency(data.totalSales)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600">Commission</p>
-                            <p className="text-sm font-bold text-green-600 truncate">Rs. {formatCurrency(data.totalCommission)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600">Rate</p>
-                            <p className="text-sm font-bold text-purple-600">{data.totalSales > 0 ? ((data.totalCommission / data.totalSales) * 100).toFixed(1) : 0}%</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Top Selling Products */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="bg-linear-to-r from-blue-600 to-cyan-600 px-3 sm:px-4 py-2">
-                <h2 className="text-xs sm:text-sm font-semibold text-white">Top 10 Selling Products</h2>
-              </div>
-              <div className="p-2 sm:p-3">
-                {stats.topSellingProducts.length === 0 ? (
-                  <div className="text-center py-6">
-                    <span className="text-xl">🏆</span>
-                    <p className="mt-1 text-xs text-gray-500">No product sales data available</p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Mobile Card View */}
-                    <div className="block lg:hidden space-y-2">
-                      {stats.topSellingProducts.map((product, index) => {
-                        const maxQty = stats.topSellingProducts[0]?.totalQuantitySold || 1;
-                        const percentage = (product.totalQuantitySold / maxQty) * 100;
-                        return (
-                          <div key={index} className="border border-gray-200 rounded-md p-2 bg-gray-50">
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="flex items-center gap-2">
-                                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                                  index === 0 ? 'bg-yellow-100 text-yellow-800' : 
-                                  index === 1 ? 'bg-gray-100 text-gray-800' :
-                                  index === 2 ? 'bg-orange-100 text-orange-800' : 'bg-blue-50 text-blue-800'
-                                }`}>
-                                  {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                                </span>
-                                <span className="text-xs font-medium text-gray-900">{product.productName}</span>
-                              </div>
-                              <span className="text-xs font-bold text-green-600">Rs. {formatCurrency(product.totalRevenue)}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-1 text-xs">
-                              <div><span className="text-gray-500">Category:</span> {product.productCategory}</div>
-                              <div><span className="text-gray-500">Qty Sold:</span> <span className="font-bold">{product.totalQuantitySold}</span></div>
-                            </div>
-                            <div className="mt-1.5 w-full bg-gray-200 rounded-full h-1.5">
-                              <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${percentage}%` }}></div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Desktop Table View */}
-                    <div className="overflow-x-auto hidden lg:block">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Rank</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Product</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 hidden md:table-cell">Category</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">Qty Sold</th>
-                            <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Revenue</th>
-                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 hidden lg:table-cell">Progress</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {stats.topSellingProducts.map((product, index) => {
-                            const maxQty = stats.topSellingProducts[0]?.totalQuantitySold || 1;
-                            const percentage = (product.totalQuantitySold / maxQty) * 100;
-                            return (
-                              <tr key={index} className="hover:bg-gray-50">
-                                <td className="px-3 py-2 whitespace-nowrap">
-                                  <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
-                                    index === 0 ? 'bg-yellow-100 text-yellow-800' : 
-                                    index === 1 ? 'bg-gray-100 text-gray-800' :
-                                    index === 2 ? 'bg-orange-100 text-orange-800' : 'bg-blue-50 text-blue-800'
-                                  }`}>
-                                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-xs font-medium text-gray-900">{product.productName}</td>
-                                <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500 hidden md:table-cell">{product.productCategory}</td>
-                                <td className="px-3 py-2 whitespace-nowrap text-center text-xs font-bold">{product.totalQuantitySold}</td>
-                                <td className="px-3 py-2 whitespace-nowrap text-right text-xs font-bold text-green-600">Rs. {formatCurrency(product.totalRevenue)}</td>
-                                <td className="px-3 py-2 whitespace-nowrap hidden lg:table-cell">
-                                  <div className="w-20 bg-gray-200 rounded-full h-2 mx-auto">
-                                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${percentage}%` }}></div>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
 
             {/* Employee Performance */}
             {Object.keys(stats.commissionByCategory).length > 0 && (
