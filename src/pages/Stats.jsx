@@ -189,7 +189,7 @@ const DashboardStats = () => {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 py-3 sm:py-4 md:py-5 px-2 sm:px-3 md:px-4 lg:px-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-3 sm:py-4 md:py-5 px-2 sm:px-3 md:px-4 lg:px-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-4 sm:mb-5">
@@ -201,7 +201,7 @@ const DashboardStats = () => {
           <div className="mb-3 bg-red-50 border-l-4 border-red-500 p-2 sm:p-2.5 rounded-r-lg text-xs">
             <div className="flex items-start">
               <span className="mr-2 shrink-0">❌</span>
-              <p className="text-red-700 flex-1 wrap-break">{error}</p>
+              <p className="text-red-700 flex-1 break-words">{error}</p>
               <button onClick={clearMessages} className="text-red-400 hover:text-red-600 shrink-0 ml-1">✕</button>
             </div>
           </div>
@@ -210,12 +210,11 @@ const DashboardStats = () => {
           <div className="mb-3 bg-green-50 border-l-4 border-green-500 p-2 sm:p-2.5 rounded-r-lg text-xs">
             <div className="flex items-start">
               <span className="mr-2 shrink-0">✅</span>
-              <p className="text-green-700 flex-1 wrap-break">{success}</p>
+              <p className="text-green-700 flex-1 break-words">{success}</p>
               <button onClick={clearMessages} className="text-green-400 hover:text-green-600 shrink-0 ml-1">✕</button>
             </div>
           </div>
         )}
-
 
         {/* Loading State */}
         {loading && !stats && (
@@ -239,40 +238,37 @@ const DashboardStats = () => {
                   
                   return (
                     <div key={category}>
-                      {/* Category Section */}
-                     
-
                       {/* Separate Boxes for Orders, Revenue, and Commission */}
-                      <div className="flex items-center justify-evenly">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         {/* Total Orders Box */}
-                        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                          <div className="bg-blue-500 px-3 py-2 w-45">
-                            <h3 className="text-xs font-semibold text-white">Total Orders - {category}</h3>
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden w-full">
+                          <div className="bg-blue-500 px-3 sm:px-4 py-2 sm:py-2.5">
+                            <h3 className="text-xs font-semibold text-white truncate">Total Orders - {category}</h3>
                           </div>
                           <div className="p-3 sm:p-4 text-center">
-                            <p className="text-2xl sm:text-xl font-bold text-blue-600">{categoryTotalOrders}</p>
+                            <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-600">{categoryTotalOrders}</p>
                             <p className="text-xs text-gray-600 mt-1">Orders</p>
                           </div>
                         </div>
 
                         {/* Total Revenue Box */}
-                        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                          <div className="bg-blue-500 px-3 py-2 w-45">
-                            <h3 className="text-xs font-semibold text-white">Total Revenue - {category}</h3>
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden w-full">
+                          <div className="bg-blue-500 px-3 sm:px-4 py-2 sm:py-2.5">
+                            <h3 className="text-xs font-semibold text-white truncate">Total Revenue - {category}</h3>
                           </div>
                           <div className="p-3 sm:p-4 text-center">
-                            <p className="text-2xl sm:text-xl font-bold text-blue-600">Rs. {formatCurrency(categoryTotalRevenue)}</p>
+                            <p className="text-base sm:text-xl lg:text-2xl font-bold text-blue-600 truncate">Rs. {formatCurrency(categoryTotalRevenue)}</p>
                             <p className="text-xs text-gray-600 mt-1">Revenue</p>
                           </div>
                         </div>
 
                         {/* Total Commission Box */}
-                        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                          <div className="bg-blue-500 px-3 py-2 w-45">
-                            <h3 className="text-xs font-semibold text-white">Total Commission - {category}</h3>
+                        <div className="bg-white rounded-lg shadow-md overflow-hidden w-full">
+                          <div className="bg-blue-500 px-3 sm:px-4 py-2 sm:py-2.5">
+                            <h3 className="text-xs font-semibold text-white truncate">Total Commission - {category}</h3>
                           </div>
                           <div className="p-3 sm:p-4 text-center">
-                            <p className="text-2xl sm:text-xl font-bold text-blue-600">Rs. {formatCurrency(categoryTotalCommission)}</p>
+                            <p className="text-base sm:text-xl lg:text-2xl font-bold text-blue-600 truncate">Rs. {formatCurrency(categoryTotalCommission)}</p>
                             <p className="text-xs text-gray-600 mt-1">Commission</p>
                           </div>
                         </div>
@@ -291,7 +287,7 @@ const DashboardStats = () => {
             {/* Employee Performance */}
             {Object.keys(stats.commissionByCategory).length > 0 && (
               <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="bg-linear-to-r from-blue-600 to-cyan-600 px-3 sm:px-4 py-2">
+                <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-3 sm:px-4 py-2">
                   <h2 className="text-xs sm:text-sm font-semibold text-white">Employee Performance</h2>
                 </div>
                 <div className="p-2 sm:p-3">
@@ -364,35 +360,6 @@ const DashboardStats = () => {
           </div>
         )}
       </div>
-
-      {/* Custom CSS for extra small screens */}
-      <style jsx='true'>{`
-        @media (min-width: 480px) {
-          .xs\\:grid-cols-2 {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-          .xs\\:flex-row {
-            flex-direction: row;
-          }
-          .xs\\:w-auto {
-            width: auto;
-          }
-          .xs\\:items-center {
-            align-items: center;
-          }
-        }
-        .w-70 {
-          width: 17.5rem;
-        }
-        @media (max-width: 639px) {
-          .w-70 {
-            width: 100%;
-          }
-        }
-        .text-2xs {
-          font-size: 0.65rem;
-        }
-      `}</style>
     </div>
   );
 };
