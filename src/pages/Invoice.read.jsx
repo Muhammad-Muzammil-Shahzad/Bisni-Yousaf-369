@@ -85,7 +85,7 @@ const InvoiceRead = () => {
       params.append('limit', ITEMS_PER_PAGE);
       
       const queryString = params.toString();
-      const url = `${API_BASE_URL}/invoice?${queryString}`;
+      const url = `${API_BASE_URL}/invoice/sp?${queryString}`;
       
       const response = await axios.get(url);
       const data = response.data.data || response.data || [];
