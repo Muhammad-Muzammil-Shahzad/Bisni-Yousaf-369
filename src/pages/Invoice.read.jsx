@@ -393,7 +393,12 @@ const InvoiceRead = () => {
     }).join('');
 
     const hasFilters = Object.values(filters).some(v => v);
-    const filterInfo = hasFilters ? 'Filtered Invoices' : 'All Invoices';
+    let filterInfo = hasFilters ? 'Filtered Invoices' : 'All Invoices';
+    
+    // Add employee name to filter info if employee filter is applied
+    if (filters.employeeName) {
+      filterInfo += ` - Employee: ${filters.employeeName}`;
+    }
 
     const html = `<!DOCTYPE html>
     <html>
