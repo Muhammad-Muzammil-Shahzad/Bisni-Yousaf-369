@@ -13,6 +13,7 @@ import StockDelete from './pages/Stock.delete';
 import StockUpdate from './pages/Stock.update';
 import Session from './pages/Session';
 import Stats from './pages/Stats';
+import SalesHistory from './pages/Sales.History'
 
 const App = () => {
   return (
@@ -37,6 +38,7 @@ const App = () => {
             <Route path="/update_stock" element={<StockUpdate />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/session" element={<Session />} />
+            <Route path="/sales_history" element={<SalesHistory />} />
           </Routes>
         </div>
       </div>
