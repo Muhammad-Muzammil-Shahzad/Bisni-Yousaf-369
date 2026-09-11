@@ -52,9 +52,9 @@ const EmployeeItemsSold = () => {
           employeeMap[invoice.employeeName] = {
             employeeName: invoice.employeeName,
             employeeCategory: invoice.employeeCategory,
-            totalItems: 0,
+            totalItems: 0,       // Sum of all product quantities
             totalRevenue: 0,
-            totalOrders: 0,
+            totalOrders: 0,      // Count of invoices
             items: []
           };
         }
@@ -68,7 +68,7 @@ const EmployeeItemsSold = () => {
             itemName: product.productName,
             category: product.productCategory,
             color: product.productColor,
-            quantity: product.productQuantity,
+            quantity: product.productQuantity || 0,
             salePrice: product.productSalePrice,
             totalAmount: product.productTotalAmount,
             invoiceId: invoice.invoiceId,
@@ -80,7 +80,8 @@ const EmployeeItemsSold = () => {
 
           processedItems.push(item);
           employeeMap[invoice.employeeName].items.push(item);
-          employeeMap[invoice.employeeName].totalItems += product.productQuantity;
+          // FIX: Sum the actual quantities of products, not count invoices
+          employeeMap[invoice.employeeName].totalItems += (product.productQuantity || 0);
         });
       });
 
@@ -201,6 +202,15 @@ const EmployeeItemsSold = () => {
     setError(null);
     setSuccess(null);
   };
+
+  // FIX: Calculate total quantity of items sold (sum of all quantities)
+  const totalItemsSold = filteredItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  
+  // Bonus: Calculate total revenue too
+  const totalRevenue = filteredItems.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+  
+  // Bonus: Count unique invoices
+  const uniqueInvoiceCount = new Set(filteredItems.map(item => item.invoiceId)).size;
 
   // Get unique filter options
   const uniqueCategories = [...new Set(itemsData.map(item => item.category))];
@@ -324,26 +334,53 @@ const EmployeeItemsSold = () => {
           </div>
         </div>
 
-        {/* Total Items Display - Prominent */}
+        {/* FIXED: Total Items Sold Display - Now shows sum of quantities */}
         <div className="mb-4 bg-linear-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg p-4 sm:p-5">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Total Items Sold (Sum of Quantities) */}
+            <div className="text-center sm:text-left">
               <h3 className="text-white text-sm sm:text-base font-semibold mb-1">Total Items Sold</h3>
-              <p className="text-blue-100 text-xs">Showing all filtered results</p>
+              <p className="text-blue-100 text-xs">Sum of all product quantities</p>
+              <div className="mt-2">
+                <span className="text-3xl sm:text-4xl font-bold text-white">
+                  {formatNumber(totalItemsSold)}
+                </span>
+                <span className="text-blue-100 text-sm sm:text-base ml-2">units</span>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="text-3xl sm:text-4xl font-bold text-white">
-                {formatNumber(filteredItems.length)}
-              </span>
-              <span className="text-blue-100 text-sm sm:text-base ml-2">items</span>
+
+            {/* Total Revenue */}
+            <div className="text-center sm:text-left border-t sm:border-t-0 sm:border-l border-blue-300 pt-3 sm:pt-0 sm:pl-4">
+              <h3 className="text-white text-sm sm:text-base font-semibold mb-1">Total Revenue</h3>
+              <p className="text-blue-100 text-xs">Total sales amount</p>
+              <div className="mt-2">
+                <span className="text-2xl sm:text-3xl font-bold text-white">
+                  Rs. {formatCurrency(totalRevenue)}
+                </span>
+              </div>
+            </div>
+
+            {/* Total Invoices */}
+            <div className="text-center sm:text-left border-t sm:border-t-0 sm:border-l border-blue-300 pt-3 sm:pt-0 sm:pl-4">
+              <h3 className="text-white text-sm sm:text-base font-semibold mb-1">Total Invoices</h3>
+              <p className="text-blue-100 text-xs">Number of transactions</p>
+              <div className="mt-2">
+                <span className="text-2xl sm:text-3xl font-bold text-white">
+                  {formatNumber(uniqueInvoiceCount)}
+                </span>
+                <span className="text-blue-100 text-sm sm:text-base ml-2">invoices</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Items Table */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="bg-linear-to-r from-blue-600 to-cyan-600 px-3 sm:px-4 py-2">
+          <div className="bg-linear-to-r from-blue-600 to-cyan-600 px-3 sm:px-4 py-2 flex justify-between items-center">
             <h2 className="text-xs sm:text-sm font-semibold text-white">Items Sold Details</h2>
+            <span className="text-xs text-cyan-100">
+              {filteredItems.length} records found
+            </span>
           </div>
           
           {loading && !itemsData.length ? (
@@ -422,6 +459,24 @@ const EmployeeItemsSold = () => {
                       </tr>
                     ))}
                   </tbody>
+                  {/* Summary Footer Row */}
+                  <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+                    <tr>
+                      <td colSpan="3" className="px-3 py-2 text-xs font-bold text-gray-700 text-right">
+                        TOTAL:
+                      </td>
+                      <td className="px-3 py-2 text-xs font-bold text-center text-blue-700">
+                        {formatNumber(totalItemsSold)}
+                      </td>
+                      <td className="px-3 py-2 text-xs font-bold text-right text-gray-500">—</td>
+                      <td className="px-3 py-2 text-xs font-bold text-right text-green-700">
+                        Rs. {formatCurrency(totalRevenue)}
+                      </td>
+                      <td colSpan="3" className="px-3 py-2 text-xs text-gray-500">
+                        {uniqueInvoiceCount} unique invoice(s)
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </>
@@ -430,7 +485,7 @@ const EmployeeItemsSold = () => {
 
         {/* Empty State */}
         {!loading && !itemsData.length && (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden mt-4">
             <div className="text-center py-12 sm:py-16">
               <span className="text-3xl">📦</span>
               <h3 className="mt-2 text-sm font-medium text-gray-900">No Items Found</h3>
