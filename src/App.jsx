@@ -14,6 +14,7 @@ import StockUpdate from './pages/Stock.update';
 import Session from './pages/Session';
 import Stats from './pages/Stats';
 import SalesHistory from './pages/Sales.History'
+import StockHistory from './pages/Stock.history'; 
 
 const App = () => {
   return (
@@ -39,6 +40,7 @@ const App = () => {
             <Route path="/stats" element={<Stats />} />
             <Route path="/session" element={<Session />} />
             <Route path="/sales_history" element={<SalesHistory />} />
+            <Route path="/stock_history" element={<StockHistory />} />
           </Routes>
         </div>
       </div>
