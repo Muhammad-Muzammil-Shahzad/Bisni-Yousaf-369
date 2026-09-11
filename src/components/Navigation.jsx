@@ -17,7 +17,6 @@ const Navigation = () => {
       ),
       children: [
         { path: '/read_employee', label: 'View All'},
-        { path: '/create_employee', label: 'Create'},
         { path: '/update_employee', label: 'Update' },
         { path: '/delete_employee', label: 'Delete'},
       ],
@@ -47,7 +46,6 @@ const Navigation = () => {
       ),
       children: [
         { path: '/read_stock', label: 'View All', },
-        { path: '/create_stock', label: 'Create', },
         { path: '/update_stock', label: 'Update', },
         { path: '/delete_stock', label: 'Delete', },
       ],
