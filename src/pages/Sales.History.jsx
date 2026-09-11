@@ -335,40 +335,16 @@ const EmployeeItemsSold = () => {
         </div>
 
         {/* FIXED: Total Items Sold Display - Now shows sum of quantities */}
-        <div className="mb-4 bg-linear-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg p-4 sm:p-5">
+        <div className="mb-4 bg-linear-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg p-4 sm:p-5 ">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Total Items Sold (Sum of Quantities) */}
             <div className="text-center sm:text-left">
               <h3 className="text-white text-sm sm:text-base font-semibold mb-1">Total Items Sold</h3>
-              <p className="text-blue-100 text-xs">Sum of all product quantities</p>
               <div className="mt-2">
                 <span className="text-3xl sm:text-4xl font-bold text-white">
                   {formatNumber(totalItemsSold)}
                 </span>
                 <span className="text-blue-100 text-sm sm:text-base ml-2">units</span>
-              </div>
-            </div>
-
-            {/* Total Revenue */}
-            <div className="text-center sm:text-left border-t sm:border-t-0 sm:border-l border-blue-300 pt-3 sm:pt-0 sm:pl-4">
-              <h3 className="text-white text-sm sm:text-base font-semibold mb-1">Total Revenue</h3>
-              <p className="text-blue-100 text-xs">Total sales amount</p>
-              <div className="mt-2">
-                <span className="text-2xl sm:text-3xl font-bold text-white">
-                  Rs. {formatCurrency(totalRevenue)}
-                </span>
-              </div>
-            </div>
-
-            {/* Total Invoices */}
-            <div className="text-center sm:text-left border-t sm:border-t-0 sm:border-l border-blue-300 pt-3 sm:pt-0 sm:pl-4">
-              <h3 className="text-white text-sm sm:text-base font-semibold mb-1">Total Invoices</h3>
-              <p className="text-blue-100 text-xs">Number of transactions</p>
-              <div className="mt-2">
-                <span className="text-2xl sm:text-3xl font-bold text-white">
-                  {formatNumber(uniqueInvoiceCount)}
-                </span>
-                <span className="text-blue-100 text-sm sm:text-base ml-2">invoices</span>
               </div>
             </div>
           </div>
