@@ -14,7 +14,8 @@ import StockUpdate from './pages/Stock.update';
 import Session from './pages/Session';
 import Stats from './pages/Stats';
 import SalesHistory from './pages/Sales.History'
-import StockHistory from './pages/Stock.history'; 
+import StockHistory from './pages/Stock.history';
+import CategoryProductSales from './pages/CategoryProductSales';
 
 const App = () => {
   return (
@@ -41,6 +42,7 @@ const App = () => {
             <Route path="/session" element={<Session />} />
             <Route path="/sales_history" element={<SalesHistory />} />
             <Route path="/stock_history" element={<StockHistory />} />
+            <Route path="/category_product_sales" element={<CategoryProductSales />} />
           </Routes>
         </div>
       </div>
