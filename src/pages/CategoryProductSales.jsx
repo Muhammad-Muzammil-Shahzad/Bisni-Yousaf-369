@@ -84,7 +84,7 @@ const CategoryProductSales = () => {
             CATEGORY-WISE PRODUCT SALES
           </h1>
           <p className="text-sm text-gray-600">
-            Employee product sales summary by category
+            Employee-wise product sales summary by category
           </p>
         </div>
 
@@ -127,13 +127,25 @@ const CategoryProductSales = () => {
           </div>
         )}
 
-        {/* Data Display - Clean Table Layout */}
+        {/* Data Display - Flat Table Layout with Category Sections */}
         {!loading && Object.keys(groupedData).length > 0 && (
           <div className="space-y-6">
             {Object.entries(groupedData).map(([category, employeesData]) => {
               const categoryTotal = Object.values(employeesData).reduce(
                 (sum, products) => sum + Object.values(products).reduce((s, q) => s + q, 0), 0
               );
+
+              // Flatten the data: each row = employee + product + quantity
+              const rows = [];
+              Object.entries(employeesData)
+                .sort(([a], [b]) => a.localeCompare(b)) // sort employees alphabetically
+                .forEach(([employeeName, productsData]) => {
+                  Object.entries(productsData)
+                    .sort((a, b) => b[1] - a[1]) // sort products by quantity desc
+                    .forEach(([productName, quantity]) => {
+                      rows.push({ employeeName, productName, quantity });
+                    });
+                });
 
               return (
                 <div key={category} className="bg-white rounded-xl shadow-md overflow-hidden">
@@ -147,67 +159,52 @@ const CategoryProductSales = () => {
                     </span>
                   </div>
 
-                  <div className="p-4 sm:p-5">
-                    {Object.entries(employeesData).map(([employeeName, productsData]) => {
-                      const totalItems = Object.values(productsData).reduce((sum, qty) => sum + qty, 0);
-                      const sortedProducts = Object.entries(productsData).sort((a, b) => b[1] - a[1]);
-
-                      return (
-                        <div key={employeeName} className="mb-6 last:mb-0">
-                          {/* Employee Header */}
-                          <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2 border-b-2 border-gray-200">
-                            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                              <span>👤</span> {employeeName}
-                            </h3>
-                            <span className="text-sm font-semibold text-blue-700 bg-blue-50 px-3 py-1 rounded-full">
-                              {formatNumber(totalItems)} items
-                            </span>
-                          </div>
-
-                          {/* Products Table */}
-                          <div className="overflow-x-auto rounded-lg border border-gray-200">
-                            <table className="min-w-full divide-y divide-gray-200 text-sm">
-                              <thead className="bg-gray-100">
-                                <tr>
-                                  <th className="px-4 py-2.5 text-left font-semibold text-gray-600 uppercase tracking-wider text-xs">
-                                    Product Name
-                                  </th>
-                                  <th className="px-4 py-2.5 text-center font-semibold text-gray-600 uppercase tracking-wider text-xs w-32">
-                                    Total Sold
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-100 bg-white">
-                                {sortedProducts.map(([productName, quantity], idx) => (
-                                  <tr
-                                    key={productName}
-                                    className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                                  >
-                                    <td className="px-4 py-2.5 text-gray-800 font-medium">
-                                      {productName}
-                                    </td>
-                                    <td className="px-4 py-2.5 text-center font-bold text-green-700">
-                                      {formatNumber(quantity)}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                              {/* Employee total row */}
-                              <tfoot className="bg-gray-100 border-t-2 border-gray-300">
-                                <tr>
-                                  <td className="px-4 py-2.5 text-right font-semibold text-gray-700 text-xs uppercase">
-                                    Subtotal
-                                  </td>
-                                  <td className="px-4 py-2.5 text-center font-bold text-blue-700">
-                                    {formatNumber(totalItems)}
-                                  </td>
-                                </tr>
-                              </tfoot>
-                            </table>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  {/* Table */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 text-sm">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider text-xs w-1/3">
+                            Employee Name
+                          </th>
+                          <th className="px-4 py-3 text-left font-semibold text-gray-600 uppercase tracking-wider text-xs w-1/3">
+                            Product Name
+                          </th>
+                          <th className="px-4 py-3 text-center font-semibold text-gray-600 uppercase tracking-wider text-xs w-1/3">
+                            Quantity Sold
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 bg-white">
+                        {rows.map((row, idx) => (
+                          <tr
+                            key={`${row.employeeName}-${row.productName}`}
+                            className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                          >
+                            <td className="px-4 py-2.5 text-gray-800 font-medium">
+                              {row.employeeName}
+                            </td>
+                            <td className="px-4 py-2.5 text-gray-700">
+                              {row.productName}
+                            </td>
+                            <td className="px-4 py-2.5 text-center font-bold text-green-700">
+                              {formatNumber(row.quantity)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      {/* Category total footer */}
+                      <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+                        <tr>
+                          <td colSpan={2} className="px-4 py-2.5 text-right font-semibold text-gray-700 text-xs uppercase">
+                            Category Total
+                          </td>
+                          <td className="px-4 py-2.5 text-center font-bold text-blue-700">
+                            {formatNumber(categoryTotal)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
                 </div>
               );
