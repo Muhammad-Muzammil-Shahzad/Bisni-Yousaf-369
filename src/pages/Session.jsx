@@ -1,9 +1,54 @@
-// SessionManagement.jsx - Fixed: active session detection, invoice filtering, and session history
+// SessionManagement.jsx - Fixed: active session detection, invoice filtering, PKT timestamps
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const API_BASE_URL = 'https://bisni-ms-backend.onrender.com/api';
 const DEBUG = true;
+
+// ✅ Pakistan Standard Time (UTC+5) - Full date & time
+const formatPakistanTime = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleString('en-PK', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};
+
+// ✅ Pakistan Standard Time (UTC+5) - Date & time without seconds
+const formatPakistanTimeShort = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleString('en-PK', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
+// ✅ Convert PKT date input (YYYY-MM-DD) to UTC ISO string for backend
+// startDate → 00:00:00 PKT = previous day 19:00:00 UTC
+// endDate   → 23:59:59 PKT = same day 18:59:59 UTC
+const convertPktDateToUtc = (dateString, isEndDate = false) => {
+  if (!dateString) return '';
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  if (isEndDate) {
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
+    return utcDate.toISOString();
+  } else {
+    const utcDate = new Date(Date.UTC(year, month - 1, day - 1, 19, 0, 0, 0));
+    return utcDate.toISOString();
+  }
+};
 
 const createDebugger = (componentName) => {
   const styles = {
@@ -82,7 +127,7 @@ const apiService = {
     if (filterParams.status) params.append('status', filterParams.status);
     if (filterParams.startDate) params.append('startDate', filterParams.startDate);
     if (filterParams.endDate) params.append('endDate', filterParams.endDate);
-    
+
     const response = await axios.get(`${API_BASE_URL}/sessions?${params.toString()}`, { timeout: 10000 });
     debug.log('SUCCESS', `Loaded ${response.data?.data?.length || 0} sessions`);
     return {
@@ -138,20 +183,20 @@ const SessionManagement = () => {
   const [timer, setTimer] = useState(null);
   const [activeTab, setActiveTab] = useState('active');
   const [showDebug, setShowDebug] = useState(false);
-  
-  const [pagination, setPagination] = useState({ 
-    currentPage: 1, totalPages: 1, totalSessions: 0, limit: 10 
+
+  const [pagination, setPagination] = useState({
+    currentPage: 1, totalPages: 1, totalSessions: 0, limit: 10
   });
   const [filters, setFilters] = useState({ status: '', startDate: '', endDate: '' });
 
   // ---------- ERROR HANDLER ----------
   const handleError = useCallback((error, fallbackMessage = 'An error occurred') => {
     let message = fallbackMessage;
-    
+
     if (error.response) {
       const { status, data } = error.response;
       debug.error(`Server error (${status})`, error);
-      
+
       switch (status) {
         case 400: message = data?.message || 'Invalid request. Please check your input.'; break;
         case 404: message = data?.message || 'Resource not found.'; break;
@@ -165,7 +210,7 @@ const SessionManagement = () => {
       debug.error('Request setup error', error);
       message = error.message || fallbackMessage;
     }
-    
+
     setError(message);
     return message;
   }, []);
@@ -175,7 +220,7 @@ const SessionManagement = () => {
     debug.groupStart('Initial Data Load');
     setFetchLoading(true);
     setError(null);
-    
+
     try {
       const [employeesData, invoicesData, sessionData, sessionsResult] = await Promise.all([
         apiService.fetchEmployees(),
@@ -183,10 +228,10 @@ const SessionManagement = () => {
         apiService.fetchActiveSession(),
         apiService.fetchAllSessions(1, pagination.limit, filters),
       ]);
-      
+
       setEmployees(employeesData);
       setAllInvoices(invoicesData);
-      
+
       if (sessionData && sessionData.sessionStatus === 'Active') {
         debug.log('STATE', 'Setting active session', { id: sessionData._id, status: sessionData.sessionStatus });
         setActiveSession(sessionData);
@@ -194,10 +239,10 @@ const SessionManagement = () => {
         debug.log('STATE', 'No active session - clearing state');
         setActiveSession(null);
       }
-      
+
       setAllSessions(sessionsResult.sessions);
       if (sessionsResult.pagination) setPagination(sessionsResult.pagination);
-      
+
       debug.log('SUCCESS', 'All initial data loaded successfully');
     } catch (error) {
       handleError(error, 'Failed to load initial data');
@@ -217,7 +262,7 @@ const SessionManagement = () => {
       debug.log('TIMER', 'No active session for timer');
       return;
     }
-    
+
     debug.log('TIMER', 'Starting session timer');
     const interval = setInterval(() => {
       if (activeSession?.sessionStartDateTime) {
@@ -230,7 +275,7 @@ const SessionManagement = () => {
         });
       }
     }, 1000);
-    
+
     return () => {
       debug.log('TIMER', 'Clearing session timer');
       clearInterval(interval);
@@ -270,7 +315,7 @@ const SessionManagement = () => {
     if (!invoice) return 0;
     const emp = employees.find(e => e.employeeName === invoice.employeeName);
     if (!emp?.employeeCommission?.length) return 0;
-    
+
     return invoice.products?.reduce((total, p) => {
       const comm = emp.employeeCommission.find(c => c.productName === p.productName);
       return total + (comm ? comm.commissionAmount * (p.productQuantity || 0) : 0);
@@ -279,20 +324,20 @@ const SessionManagement = () => {
 
   const computeStats = useCallback((invoices) => {
     if (!invoices?.length) return { totalSales: 0, totalItemsSold: 0, totalCommission: 0, employeeCount: 0 };
-    
+
     const totalSales = invoices.reduce((sum, inv) => sum + (inv.grandTotalAmount || 0), 0);
-    
-    const totalItemsSold = invoices.reduce((sum, inv) => 
+
+    const totalItemsSold = invoices.reduce((sum, inv) =>
       sum + (inv.products || []).reduce((s, p) => s + (p.productQuantity || 0), 0), 0);
-    
+
     let totalCommission = 0;
     const uniqueEmployees = new Set();
-    
+
     invoices.forEach(inv => {
       uniqueEmployees.add(inv.employeeName);
       totalCommission += calculateInvoiceCommission(inv);
     });
-    
+
     return { totalSales, totalItemsSold, totalCommission, employeeCount: uniqueEmployees.size };
   }, [calculateInvoiceCommission]);
 
@@ -308,13 +353,13 @@ const SessionManagement = () => {
         apiService.fetchActiveSession(),
         apiService.fetchAllInvoices(),
       ]);
-      
+
       if (sessionData && sessionData.sessionStatus === 'Active') {
         setActiveSession(sessionData);
       } else {
         setActiveSession(null);
       }
-      
+
       setAllInvoices(invoicesData);
       setSuccess('Data refreshed');
     } catch (error) {
@@ -328,7 +373,7 @@ const SessionManagement = () => {
       const session = await apiService.startSession();
       setActiveSession(session);
       setSuccess(`Session ${session.sessionIdentifier || 'started'} successfully!`);
-      
+
       const result = await apiService.fetchAllSessions(pagination.currentPage, pagination.limit, filters);
       setAllSessions(result.sessions);
       if (result.pagination) setPagination(result.pagination);
@@ -343,11 +388,11 @@ const SessionManagement = () => {
       const result = await apiService.endSession();
       const dur = result?.duration;
       setSuccess(`Session ended! Duration: ${dur?.hours || 0}h ${dur?.minutes || 0}m`);
-      
+
       setActiveSession(null);
       setTimer(null);
       setEndConfirm(false);
-      
+
       const [sessionList, invoices] = await Promise.all([
         apiService.fetchAllSessions(pagination.currentPage, pagination.limit, filters),
         apiService.fetchAllInvoices(),
@@ -366,15 +411,17 @@ const SessionManagement = () => {
       const details = await apiService.fetchSessionDetails(sessionId);
       setSessionDetails(details);
       setSelectedSession(details);
-      
+
       const session = allSessions.find(s => s._id === sessionId);
       const invoices = session ? getInvoicesForSession(session) : [];
       setSelectedSessionInvoices(invoices);
-      
+
       debug.log('INFO', `Viewing session ${sessionId}: ${invoices.length} invoices found`);
     } catch (error) {
       handleError(error, 'Failed to load session details');
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteSession = async (sessionId) => {
@@ -383,9 +430,9 @@ const SessionManagement = () => {
       await apiService.deleteSession(sessionId);
       setSuccess('Session deleted successfully!');
       setAllSessions(prev => prev.filter(s => s._id !== sessionId));
-      setDeleteConfirm(null); setSessionDetails(null); 
+      setDeleteConfirm(null); setSessionDetails(null);
       setSelectedSession(null); setSelectedSessionInvoices([]);
-      
+
       const result = await apiService.fetchAllSessions(pagination.currentPage, pagination.limit, filters);
       setAllSessions(result.sessions);
       if (result.pagination) setPagination(result.pagination);
@@ -394,10 +441,21 @@ const SessionManagement = () => {
     } finally { setLoading(false); }
   };
 
+  // ✅ FIXED: Convert PKT dates to UTC before sending to backend
   const handleFetchSessions = async (page = 1, filterParams = filters) => {
     setFetchLoading(true); setError(null);
     try {
-      const result = await apiService.fetchAllSessions(page, pagination.limit, filterParams);
+      const processedFilters = { ...filterParams };
+
+      // Convert date filters from PKT to UTC
+      if (filterParams.startDate) {
+        processedFilters.startDate = convertPktDateToUtc(filterParams.startDate, false);
+      }
+      if (filterParams.endDate) {
+        processedFilters.endDate = convertPktDateToUtc(filterParams.endDate, true);
+      }
+
+      const result = await apiService.fetchAllSessions(page, pagination.limit, processedFilters);
       setAllSessions(result.sessions);
       if (result.pagination) setPagination(result.pagination);
     } catch (error) {
@@ -406,14 +464,12 @@ const SessionManagement = () => {
   };
 
   // ---------- RENDER HELPERS ----------
-  const formatCurrency = (amount) => 
+  const formatCurrency = (amount) =>
     new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount || 0);
 
+  // ✅ FIXED: Use Pakistan Standard Time
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', { 
-      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-    });
+    return formatPakistanTimeShort(dateString);
   };
 
   const formatTimerValue = (value) => value < 10 ? `0${value}` : value;
@@ -440,8 +496,20 @@ const SessionManagement = () => {
   const handlePrintInvoices = (invoices, stats, title) => {
     if (!invoices?.length) { setError('No invoices to print'); return; }
     const fc = (a) => (a || 0).toFixed(2);
-    const fd = (ds) => ds ? new Date(ds).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A';
-    
+    // ✅ FIXED: Use Pakistan Standard Time in print
+    const fd = (ds) => {
+      if (!ds) return 'N/A';
+      return new Date(ds).toLocaleString('en-PK', {
+        timeZone: 'Asia/Karachi',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    };
+
     const rows = invoices.map((inv, i) => {
       const comm = calculateInvoiceCommission(inv);
       return `<tr><td style="text-align:center;">${i+1}</td><td>${inv.invoiceId}</td><td>${inv.customerName}</td><td>${inv.customerMobileNumber1}</td><td>${inv.employeeName}</td><td style="text-align:right;">Rs. ${fc(inv.grandTotalAmount)}</td><td style="text-align:right;">Rs. ${fc(comm)}</td></tr>`;
@@ -577,12 +645,12 @@ const SessionManagement = () => {
                   <div>
                     <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-2 mb-2">
                       <h3 className="text-xs font-semibold text-gray-700">Active Session Invoices ({activeSessionInvoices.length})</h3>
-                      <button onClick={() => handlePrintInvoices(activeSessionInvoices, activeStats, 'ACTIVE SESSION INVOICES')} 
+                      <button onClick={() => handlePrintInvoices(activeSessionInvoices, activeStats, 'ACTIVE SESSION INVOICES')}
                         className="w-full xs:w-auto px-2.5 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 text-xs">
                         🖨️ Print
                       </button>
                     </div>
-                    
+
                     {/* Mobile Card View */}
                     <div className="block md:hidden max-h-64 overflow-y-auto space-y-2">
                       {activeSessionInvoices.length === 0 ? (
@@ -652,20 +720,20 @@ const SessionManagement = () => {
               </div>
               <div className="p-2 sm:p-3">
                 <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-2">
-                  <select name="status" value={filters.status} onChange={e => setFilters(p => ({...p, status: e.target.value}))} 
+                  <select name="status" value={filters.status} onChange={e => setFilters(p => ({...p, status: e.target.value}))}
                     className="px-2 py-1.5 border rounded-md text-xs w-full">
                     <option value="">All Status</option><option value="Active">Active</option><option value="Completed">Completed</option>
                   </select>
-                  <input type="date" name="startDate" value={filters.startDate} onChange={e => setFilters(p => ({...p, startDate: e.target.value}))} 
+                  <input type="date" name="startDate" value={filters.startDate} onChange={e => setFilters(p => ({...p, startDate: e.target.value}))}
                     className="px-2 py-1.5 border rounded-md text-xs w-full" />
-                  <input type="date" name="endDate" value={filters.endDate} onChange={e => setFilters(p => ({...p, endDate: e.target.value}))} 
+                  <input type="date" name="endDate" value={filters.endDate} onChange={e => setFilters(p => ({...p, endDate: e.target.value}))}
                     className="px-2 py-1.5 border rounded-md text-xs w-full" />
                   <div className="flex gap-2">
-                    <button onClick={() => handleFetchSessions(1, filters)} 
+                    <button onClick={() => handleFetchSessions(1, filters)}
                       className="flex-1 px-3 py-1.5 bg-linear-to-r from-blue-600 to-cyan-600 text-white rounded-md text-xs">
                       Apply
                     </button>
-                    <button onClick={() => { setFilters({status:'',startDate:'',endDate:''}); handleFetchSessions(1, {}); }} 
+                    <button onClick={() => { setFilters({status:'',startDate:'',endDate:''}); handleFetchSessions(1, {}); }}
                       className="flex-1 px-3 py-1.5 bg-white border rounded-md text-xs">
                       Clear
                     </button>
@@ -703,15 +771,15 @@ const SessionManagement = () => {
                         <div><span className="text-gray-500">Commission:</span> <span className="text-purple-600">Rs. {formatCurrency(session.totalCommission)}</span></div>
                       </div>
                       <div className="flex gap-2">
-                        <button 
-                          onClick={() => hasInv ? handleViewSession(session._id) : null} 
+                        <button
+                          onClick={() => hasInv ? handleViewSession(session._id) : null}
                           disabled={!hasInv}
                           className={`flex-1 px-2 py-1.5 rounded text-xs font-medium text-center ${
                             hasInv ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                           }`}>
                           {hasInv ? `View (${sessionInvoices.length})` : 'No Invoices'}
                         </button>
-                        <button onClick={() => setDeleteConfirm(session._id)} 
+                        <button onClick={() => setDeleteConfirm(session._id)}
                           className="px-2 py-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100 text-xs font-medium">
                           Delete
                         </button>
@@ -758,10 +826,10 @@ const SessionManagement = () => {
                           </td>
                           <td className="px-3 py-2 text-center">
                             <div className="flex justify-center gap-1.5">
-                              <button 
-                                onClick={() => hasInv ? handleViewSession(session._id) : null} 
+                              <button
+                                onClick={() => hasInv ? handleViewSession(session._id) : null}
                                 disabled={!hasInv}
-                                className={`p-1 rounded ${hasInv ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`} 
+                                className={`p-1 rounded ${hasInv ? 'text-blue-600 hover:text-blue-800 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`}
                                 title={hasInv ? `View ${sessionInvoices.length} invoice(s)` : 'No invoices available'}>
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                               </button>
@@ -784,15 +852,15 @@ const SessionManagement = () => {
                     {((pagination.currentPage-1)*pagination.limit)+1}-{Math.min(pagination.currentPage*pagination.limit, pagination.totalSessions)} of {pagination.totalSessions}
                   </span>
                   <div className="flex flex-wrap gap-1 justify-center">
-                    <button onClick={() => handleFetchSessions(pagination.currentPage-1)} disabled={pagination.currentPage===1} 
+                    <button onClick={() => handleFetchSessions(pagination.currentPage-1)} disabled={pagination.currentPage===1}
                       className="px-2 py-1 border rounded disabled:opacity-50 text-xs">Prev</button>
                     {[...Array(pagination.totalPages)].map((_,i) => (
-                      <button key={i} onClick={() => handleFetchSessions(i+1)} 
+                      <button key={i} onClick={() => handleFetchSessions(i+1)}
                         className={`px-2 py-1 border rounded text-xs ${pagination.currentPage===i+1?'bg-blue-600 text-white':'hover:bg-gray-50'}`}>
                         {i+1}
                       </button>
                     ))}
-                    <button onClick={() => handleFetchSessions(pagination.currentPage+1)} disabled={pagination.currentPage===pagination.totalPages} 
+                    <button onClick={() => handleFetchSessions(pagination.currentPage+1)} disabled={pagination.currentPage===pagination.totalPages}
                       className="px-2 py-1 border rounded disabled:opacity-50 text-xs">Next</button>
                   </div>
                 </div>
@@ -819,9 +887,9 @@ const SessionManagement = () => {
                       Session Details {sessionDetails.basicInfo?.sessionIdentifier && `(${sessionDetails.basicInfo.sessionIdentifier})`}
                     </h3>
                     <div className="flex gap-2 shrink-0">
-                      <button onClick={() => handlePrintInvoices(selectedSessionInvoices, selectedStats, 'SESSION INVOICES REPORT')} 
+                      <button onClick={() => handlePrintInvoices(selectedSessionInvoices, selectedStats, 'SESSION INVOICES REPORT')}
                         className="px-2.5 py-1 bg-green-600 text-white rounded-md text-xs">🖨️</button>
-                      <button onClick={() => { setSessionDetails(null); setSelectedSession(null); setSelectedSessionInvoices([]); }} 
+                      <button onClick={() => { setSessionDetails(null); setSelectedSession(null); setSelectedSessionInvoices([]); }}
                         className="text-white hover:text-gray-200">✕</button>
                     </div>
                   </div>
@@ -859,7 +927,7 @@ const SessionManagement = () => {
                     </div>
                     <div>
                       <h4 className="text-xs font-semibold text-gray-700 mb-2">Session Invoices ({selectedSessionInvoices.length})</h4>
-                      
+
                       {/* Mobile Card View for Modal */}
                       <div className="block md:hidden max-h-64 overflow-y-auto space-y-2">
                         {selectedSessionInvoices.length === 0 ? (
