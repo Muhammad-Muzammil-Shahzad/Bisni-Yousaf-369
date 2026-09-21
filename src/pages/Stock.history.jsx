@@ -1,8 +1,62 @@
-// StockHistory.jsx - View all stock operations with date/time tracking
+// StockHistory.jsx - View all stock operations with PKT date/time tracking
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const API_BASE_URL = 'https://bisni-ms-backend.onrender.com/api';
+
+// ✅ Pakistan Standard Time (UTC+5) - Full date & time
+const formatPakistanTime = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleString('en-PK', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};
+
+// ✅ Pakistan Standard Time (UTC+5) - Date only
+const formatPakistanDateOnly = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleDateString('en-PK', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+// ✅ Pakistan Standard Time (UTC+5) - Time only
+const formatPakistanTimeOnly = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleTimeString('en-PK', {
+    timeZone: 'Asia/Karachi',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};
+
+// ✅ Convert PKT date input (YYYY-MM-DD) to UTC ISO string
+// startDate → 00:00:00 PKT = previous day 19:00:00 UTC
+// endDate   → 23:59:59 PKT = same day 18:59:59 UTC
+const convertPktDateToUtc = (dateString, isEndDate = false) => {
+  if (!dateString) return '';
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  if (isEndDate) {
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
+    return utcDate.toISOString();
+  } else {
+    const utcDate = new Date(Date.UTC(year, month - 1, day - 1, 19, 0, 0, 0));
+    return utcDate.toISOString();
+  }
+};
 
 const StockHistory = () => {
   const [history, setHistory] = useState([]);
@@ -59,6 +113,7 @@ const StockHistory = () => {
     }
   };
 
+  // ✅ FIXED: Convert PKT dates to UTC before sending to backend
   const fetchHistory = useCallback(async (page = 1, filterParams = filters) => {
     try {
       setLoading(true);
@@ -72,9 +127,22 @@ const StockHistory = () => {
       if (filterParams.productName) params.append('productName', filterParams.productName);
       if (filterParams.productCategory) params.append('productCategory', filterParams.productCategory);
       if (filterParams.productColor) params.append('productColor', filterParams.productColor);
-      if (filterParams.date) params.append('date', filterParams.date);
-      if (filterParams.startDate) params.append('startDate', filterParams.startDate);
-      if (filterParams.endDate) params.append('endDate', filterParams.endDate);
+
+      // ✅ Convert single date from PKT to UTC range
+      if (filterParams.date) {
+        const dateFromUtc = convertPktDateToUtc(filterParams.date, false);
+        const dateToUtc = convertPktDateToUtc(filterParams.date, true);
+        params.append('startDate', dateFromUtc);
+        params.append('endDate', dateToUtc);
+      } else {
+        // ✅ Convert startDate/endDate from PKT to UTC
+        if (filterParams.startDate) {
+          params.append('startDate', convertPktDateToUtc(filterParams.startDate, false));
+        }
+        if (filterParams.endDate) {
+          params.append('endDate', convertPktDateToUtc(filterParams.endDate, true));
+        }
+      }
 
       const response = await axios.get(`${API_BASE_URL}/stock-history?${params.toString()}`);
 
@@ -118,35 +186,17 @@ const StockHistory = () => {
     setSuccess(null);
   };
 
-  // Formatting helpers
+  // Formatting helpers - ✅ All use Pakistan Standard Time
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    return formatPakistanTime(dateString);
   };
 
   const formatDateOnly = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    return formatPakistanDateOnly(dateString);
   };
 
   const formatTimeOnly = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    return formatPakistanTimeOnly(dateString);
   };
 
   const formatCurrency = (amount) => {
