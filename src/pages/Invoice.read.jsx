@@ -1,8 +1,52 @@
-// InvoiceRead.jsx - Displays all invoices from database without session filter
+// InvoiceRead.jsx - Displays all invoices from database with Pakistan Standard Time support
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const API_BASE_URL = 'https://bisni-ms-backend.onrender.com/api';
+
+// ✅ Pakistan Standard Time (UTC+5) - Full date & time
+const formatPakistanTime = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleString('en-PK', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};
+
+// ✅ Pakistan Standard Time (UTC+5) - Date only
+const formatPakistanDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleDateString('en-PK', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+// ✅ Convert PKT date input (YYYY-MM-DD) to UTC ISO string for backend
+// startDate → 00:00:00 PKT = previous day 19:00:00 UTC
+// endDate   → 23:59:59 PKT = same day 18:59:59 UTC
+const convertPktDateToUtc = (dateString, isEndDate = false) => {
+  if (!dateString) return '';
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  if (isEndDate) {
+    // End of day PKT: 23:59:59.999 PKT = 18:59:59.999 UTC
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
+    return utcDate.toISOString();
+  } else {
+    // Start of day PKT: 00:00:00 PKT = previous day 19:00:00 UTC
+    const utcDate = new Date(Date.UTC(year, month - 1, day - 1, 19, 0, 0, 0));
+    return utcDate.toISOString();
+  }
+};
 
 const InvoiceRead = () => {
   const [invoices, setInvoices] = useState([]);
@@ -11,7 +55,7 @@ const InvoiceRead = () => {
   const [success, setSuccess] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [employees, setEmployees] = useState([]);
-  
+
   // Filter states
   const [filters, setFilters] = useState({
     employeeCategory: '',
@@ -42,26 +86,26 @@ const InvoiceRead = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams();
-      
+
       Object.keys(filterParams).forEach(key => {
         if (filterParams[key]) {
           params.append(key, filterParams[key]);
         }
       });
-      
+
       const queryString = params.toString();
       const url = queryString ? `${API_BASE_URL}/invoice?${queryString}` : `${API_BASE_URL}/invoice`;
-      
+
       const response = await axios.get(url);
       const data = response.data.data || response.data || [];
       setInvoices(data);
-      
+
       if (response.data.count !== undefined) {
         setSuccess(`${response.data.count} invoice(s) loaded`);
       }
-      
+
     } catch (error) {
       console.error('Error fetching invoices:', error);
       setError('Failed to load invoices. Please try again later.');
@@ -78,10 +122,27 @@ const InvoiceRead = () => {
     }));
   };
 
+  // ✅ FIXED: Convert PKT dates to UTC before sending to backend
   const applyFilters = () => {
-    const hasFilters = Object.values(filters).some(v => v);
+    const processedFilters = { ...filters };
+
+    // Convert date filters from PKT to UTC
+    if (filters.startDate) {
+      processedFilters.startDate = convertPktDateToUtc(filters.startDate, false);
+    }
+    if (filters.endDate) {
+      processedFilters.endDate = convertPktDateToUtc(filters.endDate, true);
+    }
+    if (filters.date) {
+      // Single date: from start of PKT day to end of PKT day
+      processedFilters.dateFrom = convertPktDateToUtc(filters.date, false);
+      processedFilters.dateTo = convertPktDateToUtc(filters.date, true);
+      delete processedFilters.date;
+    }
+
+    const hasFilters = Object.values(processedFilters).some(v => v);
     if (hasFilters) {
-      fetchInvoices(filters);
+      fetchInvoices(processedFilters);
     } else {
       fetchInvoices();
     }
@@ -102,12 +163,12 @@ const InvoiceRead = () => {
   };
 
   const handleViewInvoice = (invoice) => {
-    const employee = employees.find(emp => 
-      emp.employeeName === invoice.employeeName && 
+    const employee = employees.find(emp =>
+      emp.employeeName === invoice.employeeName &&
       emp.employeeMobileNumber === invoice.employeeMobileNumber &&
       emp.employeeAddres === invoice.employeeAddres
     );
-    
+
     setSelectedInvoice({
       ...invoice,
       employeeCommission: employee?.employeeCommission || []
@@ -129,8 +190,8 @@ const InvoiceRead = () => {
 
   // Calculate commission for an invoice
   const calculateInvoiceCommission = (invoice) => {
-    const employee = employees.find(emp => 
-      emp.employeeName === invoice.employeeName && 
+    const employee = employees.find(emp =>
+      emp.employeeName === invoice.employeeName &&
       emp.employeeMobileNumber === invoice.employeeMobileNumber &&
       emp.employeeAddres === invoice.employeeAddres
     );
@@ -145,18 +206,25 @@ const InvoiceRead = () => {
       return;
     }
 
-    const employee = employees.find(emp => 
-      emp.employeeName === inv.employeeName && 
+    const employee = employees.find(emp =>
+      emp.employeeName === inv.employeeName &&
       emp.employeeMobileNumber === inv.employeeMobileNumber &&
       emp.employeeAddres === inv.employeeAddres
     );
     const commission = calculateEmployeeCommission(inv.products, employee?.employeeCommission || []);
-    
+
     const formatCur = (amount) => (amount || 0).toFixed(2);
+    // ✅ FIXED: Use Pakistan Standard Time in print
     const formatDt = (dateString) => {
       if (!dateString) return 'N/A';
-      return new Date(dateString).toLocaleString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      return new Date(dateString).toLocaleString('en-PK', {
+        timeZone: 'Asia/Karachi',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
       });
     };
 
@@ -364,10 +432,17 @@ const InvoiceRead = () => {
     }
 
     const formatCur = (amount) => (amount || 0).toFixed(2);
+    // ✅ FIXED: Use Pakistan Standard Time in print list
     const formatDt = (dateString) => {
       if (!dateString) return 'N/A';
-      return new Date(dateString).toLocaleString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      return new Date(dateString).toLocaleString('en-PK', {
+        timeZone: 'Asia/Karachi',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
       });
     };
 
@@ -379,7 +454,7 @@ const InvoiceRead = () => {
       const commission = calculateInvoiceCommission(inv);
       totalCommission += commission;
       totalAmount += (inv.grandTotalAmount || 0);
-      
+
       return `
         <tr>
           <td style="text-align:center;">${i + 1}</td>
@@ -394,7 +469,7 @@ const InvoiceRead = () => {
 
     const hasFilters = Object.values(filters).some(v => v);
     let filterInfo = hasFilters ? 'Filtered Invoices' : 'All Invoices';
-    
+
     // Add employee name to filter info if employee filter is applied
     if (filters.employeeName) {
       filterInfo += ` - Employee: ${filters.employeeName}`;
@@ -492,11 +567,9 @@ const InvoiceRead = () => {
     setSuccess(null);
   };
 
+  // ✅ FIXED: Use Pakistan Standard Time for display
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
+    return formatPakistanTime(dateString);
   };
 
   const formatCurrency = (amount) => {
@@ -641,7 +714,7 @@ const InvoiceRead = () => {
               </svg>
               <h3 className="mt-3 text-sm font-medium text-gray-900">No invoices found</h3>
               <p className="mt-1 text-xs text-gray-500">
-                {Object.values(filters).some(v => v) 
+                {Object.values(filters).some(v => v)
                   ? 'No invoices match your filter criteria.'
                   : 'There are no invoices to display.'}
               </p>
