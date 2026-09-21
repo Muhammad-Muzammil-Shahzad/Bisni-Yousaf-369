@@ -1,8 +1,60 @@
-// EmployeeItemsSold.jsx - Complete employee items sold details with filters
+// EmployeeItemsSold.jsx - Complete employee items sold details with PKT support
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const API_BASE_URL = 'https://bisni-ms-backend.onrender.com/api';
+
+// ✅ Pakistan Standard Time (UTC+5) - Full date & time
+const formatPakistanTime = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleString('en-PK', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+};
+
+// ✅ Pakistan Standard Time (UTC+5) - Date only
+const formatPakistanDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleDateString('en-PK', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+// ✅ Get PKT date string (YYYY-MM-DD) from a UTC date string
+// This is used to compare dates correctly regardless of UTC/PKT
+const getPktDateString = (dateString) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  const pktOffset = 5 * 60 * 60 * 1000;
+  const pktDate = new Date(d.getTime() + pktOffset);
+  return pktDate.toISOString().split('T')[0];
+};
+
+// ✅ Convert PKT date input (YYYY-MM-DD) to UTC ISO string
+const convertPktDateToUtc = (dateString, isEndDate = false) => {
+  if (!dateString) return '';
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  if (isEndDate) {
+    // End of day PKT: 23:59:59.999 PKT = 18:59:59.999 UTC
+    const utcDate = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
+    return utcDate.toISOString();
+  } else {
+    // Start of day PKT: 00:00:00 PKT = previous day 19:00:00 UTC
+    const utcDate = new Date(Date.UTC(year, month - 1, day - 1, 19, 0, 0, 0));
+    return utcDate.toISOString();
+  }
+};
 
 const EmployeeItemsSold = () => {
   const [itemsData, setItemsData] = useState([]);
@@ -14,12 +66,14 @@ const EmployeeItemsSold = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employeeSummary, setEmployeeSummary] = useState(null);
 
-  // Filter states
+  // Filter states - ✅ Added startDate & endDate
   const [filters, setFilters] = useState({
     itemName: '',
     category: '',
     color: '',
     date: '',
+    startDate: '',
+    endDate: '',
     employeeName: ''
   });
 
@@ -52,9 +106,9 @@ const EmployeeItemsSold = () => {
           employeeMap[invoice.employeeName] = {
             employeeName: invoice.employeeName,
             employeeCategory: invoice.employeeCategory,
-            totalItems: 0,       // Sum of all product quantities
+            totalItems: 0,
             totalRevenue: 0,
-            totalOrders: 0,      // Count of invoices
+            totalOrders: 0,
             items: []
           };
         }
@@ -80,14 +134,13 @@ const EmployeeItemsSold = () => {
 
           processedItems.push(item);
           employeeMap[invoice.employeeName].items.push(item);
-          // FIX: Sum the actual quantities of products, not count invoices
           employeeMap[invoice.employeeName].totalItems += (product.productQuantity || 0);
         });
       });
 
       setItemsData(processedItems);
       setFilteredItems(processedItems);
-      
+
       // Set first employee as selected if available
       const employeeKeys = Object.keys(employeeMap);
       if (employeeKeys.length > 0) {
@@ -110,39 +163,60 @@ const EmployeeItemsSold = () => {
     }
   };
 
+  // ✅ FIXED: Filter with proper PKT date comparison for single date, startDate, and endDate
   const applyFilters = () => {
     let filtered = [...itemsData];
 
     if (filters.itemName) {
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
         item.itemName.toLowerCase().includes(filters.itemName.toLowerCase())
       );
     }
 
     if (filters.category) {
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
         item.category.toLowerCase().includes(filters.category.toLowerCase())
       );
     }
 
     if (filters.color) {
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
         item.color.toLowerCase().includes(filters.color.toLowerCase())
       );
     }
 
     if (filters.employeeName) {
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
         item.employeeName.toLowerCase().includes(filters.employeeName.toLowerCase())
       );
     }
 
+    // ✅ Specific Date filter (PKT based)
     if (filters.date) {
-      const filterDate = new Date(filters.date);
       filtered = filtered.filter(item => {
         if (!item.saleDate) return false;
-        const itemDate = new Date(item.saleDate);
-        return itemDate.toDateString() === filterDate.toDateString();
+        const itemPktDate = getPktDateString(item.saleDate);
+        return itemPktDate === filters.date;
+      });
+    }
+
+    // ✅ Start Date filter (PKT based)
+    if (filters.startDate) {
+      const startUtc = convertPktDateToUtc(filters.startDate, false);
+      const startMs = new Date(startUtc).getTime();
+      filtered = filtered.filter(item => {
+        if (!item.saleDate) return false;
+        return new Date(item.saleDate).getTime() >= startMs;
+      });
+    }
+
+    // ✅ End Date filter (PKT based) - FIXES 1-day-behind bug
+    if (filters.endDate) {
+      const endUtc = convertPktDateToUtc(filters.endDate, true);
+      const endMs = new Date(endUtc).getTime();
+      filtered = filtered.filter(item => {
+        if (!item.saleDate) return false;
+        return new Date(item.saleDate).getTime() <= endMs;
       });
     }
 
@@ -157,6 +231,8 @@ const EmployeeItemsSold = () => {
       category: '',
       color: '',
       date: '',
+      startDate: '',
+      endDate: '',
       employeeName: ''
     });
     setFilteredItems(itemsData);
@@ -177,9 +253,9 @@ const EmployeeItemsSold = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount || 0);
   };
 
@@ -187,15 +263,9 @@ const EmployeeItemsSold = () => {
     return new Intl.NumberFormat('en-US').format(number || 0);
   };
 
+  // ✅ FIXED: Use Pakistan Standard Time
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatPakistanTime(dateString);
   };
 
   const clearMessages = () => {
@@ -203,13 +273,13 @@ const EmployeeItemsSold = () => {
     setSuccess(null);
   };
 
-  // FIX: Calculate total quantity of items sold (sum of all quantities)
+  // Calculate total quantity of items sold
   const totalItemsSold = filteredItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
-  
-  // Bonus: Calculate total revenue too
+
+  // Calculate total revenue
   const totalRevenue = filteredItems.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-  
-  // Bonus: Count unique invoices
+
+  // Count unique invoices
   const uniqueInvoiceCount = new Set(filteredItems.map(item => item.invoiceId)).size;
 
   // Get unique filter options
@@ -252,7 +322,8 @@ const EmployeeItemsSold = () => {
             <h2 className="text-xs sm:text-sm font-semibold text-white">Filters</h2>
           </div>
           <div className="p-2 sm:p-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3">
+            {/* ✅ Now 6 columns on xl to fit start/end dates */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Item Name</label>
                 <input
@@ -307,11 +378,31 @@ const EmployeeItemsSold = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Sale Date</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Specific Date</label>
                 <input
                   type="date"
                   name="date"
                   value={filters.date}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                <input
+                  type="date"
+                  name="startDate"
+                  value={filters.startDate}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">End Date</label>
+                <input
+                  type="date"
+                  name="endDate"
+                  value={filters.endDate}
                   onChange={handleFilterChange}
                   className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -334,7 +425,7 @@ const EmployeeItemsSold = () => {
           </div>
         </div>
 
-        {/* FIXED: Total Items Sold Display - Now shows sum of quantities */}
+        {/* Total Items Sold Display */}
         <div className="mb-4 bg-linear-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg p-4 sm:p-5 ">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Total Items Sold (Sum of Quantities) */}
@@ -358,7 +449,7 @@ const EmployeeItemsSold = () => {
               {filteredItems.length} records found
             </span>
           </div>
-          
+
           {loading && !itemsData.length ? (
             <div className="flex justify-center items-center py-12 sm:py-16">
               <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-b-2 border-blue-600"></div>
@@ -420,7 +511,7 @@ const EmployeeItemsSold = () => {
                         <td className="px-3 py-2 text-xs font-medium text-gray-900">{item.itemName}</td>
                         <td className="px-3 py-2 text-xs text-gray-500">{item.category}</td>
                         <td className="px-3 py-2 text-xs text-gray-500">
-                          <span className="inline-block w-3 h-3 rounded-full border border-gray-300 mr-1" 
+                          <span className="inline-block w-3 h-3 rounded-full border border-gray-300 mr-1"
                             style={{ backgroundColor: item.color.toLowerCase() }}></span>
                           {item.color}
                         </td>
