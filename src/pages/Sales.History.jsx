@@ -1,5 +1,5 @@
-// EmployeeItemsSold.jsx - Complete employee items sold details with PKT support
-import React, { useState, useEffect } from 'react';
+// EmployeeItemsSold.jsx - With Infinite Scroll (10 at a time) + PKT support
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 
 const API_BASE_URL = 'https://bisni-ms-backend.onrender.com/api';
@@ -31,7 +31,6 @@ const formatPakistanDate = (dateString) => {
 };
 
 // ✅ Get PKT date string (YYYY-MM-DD) from a UTC date string
-// This is used to compare dates correctly regardless of UTC/PKT
 const getPktDateString = (dateString) => {
   if (!dateString) return '';
   const d = new Date(dateString);
@@ -46,27 +45,30 @@ const convertPktDateToUtc = (dateString, isEndDate = false) => {
   const [year, month, day] = dateString.split('-').map(Number);
 
   if (isEndDate) {
-    // End of day PKT: 23:59:59.999 PKT = 18:59:59.999 UTC
     const utcDate = new Date(Date.UTC(year, month - 1, day, 18, 59, 59, 999));
     return utcDate.toISOString();
   } else {
-    // Start of day PKT: 00:00:00 PKT = previous day 19:00:00 UTC
     const utcDate = new Date(Date.UTC(year, month - 1, day - 1, 19, 0, 0, 0));
     return utcDate.toISOString();
   }
 };
 
+const PAGE_SIZE = 10; // ✅ Load 10 items at a time
+
 const EmployeeItemsSold = () => {
-  const [itemsData, setItemsData] = useState([]);
-  const [filteredItems, setFilteredItems] = useState([]);
+  const [itemsData, setItemsData] = useState([]);                 // All items (master)
+  const [allFilteredItems, setAllFilteredItems] = useState([]);   // All filtered (for pagination)
+  const [filteredItems, setFilteredItems] = useState([]);         // Visible (loaded) items
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employeeSummary, setEmployeeSummary] = useState(null);
 
-  // Filter states - ✅ Added startDate & endDate
+  // Filter states
   const [filters, setFilters] = useState({
     itemName: '',
     category: '',
@@ -77,6 +79,10 @@ const EmployeeItemsSold = () => {
     employeeName: ''
   });
 
+  // ✅ Infinite scroll refs
+  const sentinelRef = useRef(null);
+  const pageRef = useRef(0);
+
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -85,6 +91,7 @@ const EmployeeItemsSold = () => {
     try {
       setLoading(true);
       setError(null);
+      pageRef.current = 0;
 
       // Fetch all invoices
       const invoicesResponse = await axios.get(`${API_BASE_URL}/invoice`);
@@ -101,7 +108,6 @@ const EmployeeItemsSold = () => {
       const employeeMap = {};
 
       invoices.forEach(invoice => {
-        // Track employee summary
         if (!employeeMap[invoice.employeeName]) {
           employeeMap[invoice.employeeName] = {
             employeeName: invoice.employeeName,
@@ -116,7 +122,6 @@ const EmployeeItemsSold = () => {
         employeeMap[invoice.employeeName].totalOrders += 1;
         employeeMap[invoice.employeeName].totalRevenue += invoice.grandTotalAmount || 0;
 
-        // Process each product in the invoice
         (invoice.products || []).forEach(product => {
           const item = {
             itemName: product.productName,
@@ -139,9 +144,14 @@ const EmployeeItemsSold = () => {
       });
 
       setItemsData(processedItems);
-      setFilteredItems(processedItems);
+      setAllFilteredItems(processedItems);
 
-      // Set first employee as selected if available
+      // ✅ Load only first 10
+      const firstBatch = processedItems.slice(0, PAGE_SIZE);
+      setFilteredItems(firstBatch);
+      setHasMore(processedItems.length > PAGE_SIZE);
+
+      // Set first employee as selected
       const employeeKeys = Object.keys(employeeMap);
       if (employeeKeys.length > 0) {
         const firstEmployee = employeeMap[employeeKeys[0]];
@@ -150,6 +160,7 @@ const EmployeeItemsSold = () => {
       }
 
       setSuccess('Data loaded successfully');
+      setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
       let errorMessage = 'Failed to load items data.';
       if (error.response) {
@@ -163,7 +174,42 @@ const EmployeeItemsSold = () => {
     }
   };
 
-  // ✅ FIXED: Filter with proper PKT date comparison for single date, startDate, and endDate
+  // ✅ Load next 10 items (used by infinite scroll)
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    const nextPage = pageRef.current + 1;
+    const startIdx = nextPage * PAGE_SIZE;
+    const endIdx = startIdx + PAGE_SIZE;
+
+    setTimeout(() => {
+      const nextBatch = allFilteredItems.slice(startIdx, endIdx);
+      setFilteredItems(prev => [...prev, ...nextBatch]);
+      pageRef.current = nextPage;
+      setHasMore(endIdx < allFilteredItems.length);
+      setLoadingMore(false);
+    }, 250);
+  }, [loadingMore, hasMore, allFilteredItems]);
+
+  // ✅ IntersectionObserver for infinite scroll
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMore();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [loadMore, hasMore, loadingMore, loading]);
+
+  // ✅ Filter with PKT date comparison
   const applyFilters = () => {
     let filtered = [...itemsData];
 
@@ -191,16 +237,15 @@ const EmployeeItemsSold = () => {
       );
     }
 
-    // ✅ Specific Date filter (PKT based)
+    // ✅ Specific Date (PKT based)
     if (filters.date) {
       filtered = filtered.filter(item => {
         if (!item.saleDate) return false;
-        const itemPktDate = getPktDateString(item.saleDate);
-        return itemPktDate === filters.date;
+        return getPktDateString(item.saleDate) === filters.date;
       });
     }
 
-    // ✅ Start Date filter (PKT based)
+    // ✅ Start Date (PKT based)
     if (filters.startDate) {
       const startUtc = convertPktDateToUtc(filters.startDate, false);
       const startMs = new Date(startUtc).getTime();
@@ -210,7 +255,7 @@ const EmployeeItemsSold = () => {
       });
     }
 
-    // ✅ End Date filter (PKT based) - FIXES 1-day-behind bug
+    // ✅ End Date (PKT based)
     if (filters.endDate) {
       const endUtc = convertPktDateToUtc(filters.endDate, true);
       const endMs = new Date(endUtc).getTime();
@@ -220,7 +265,12 @@ const EmployeeItemsSold = () => {
       });
     }
 
-    setFilteredItems(filtered);
+    // ✅ Reset pagination for new filter
+    pageRef.current = 0;
+    setAllFilteredItems(filtered);
+    setFilteredItems(filtered.slice(0, PAGE_SIZE));
+    setHasMore(filtered.length > PAGE_SIZE);
+
     setSuccess('Filters applied successfully');
     setTimeout(() => setSuccess(null), 3000);
   };
@@ -235,7 +285,13 @@ const EmployeeItemsSold = () => {
       endDate: '',
       employeeName: ''
     });
-    setFilteredItems(itemsData);
+
+    // ✅ Reset pagination
+    pageRef.current = 0;
+    setAllFilteredItems(itemsData);
+    setFilteredItems(itemsData.slice(0, PAGE_SIZE));
+    setHasMore(itemsData.length > PAGE_SIZE);
+
     setSuccess('Filters cleared');
     setTimeout(() => setSuccess(null), 3000);
   };
@@ -263,7 +319,6 @@ const EmployeeItemsSold = () => {
     return new Intl.NumberFormat('en-US').format(number || 0);
   };
 
-  // ✅ FIXED: Use Pakistan Standard Time
   const formatDate = (dateString) => {
     return formatPakistanTime(dateString);
   };
@@ -273,14 +328,10 @@ const EmployeeItemsSold = () => {
     setSuccess(null);
   };
 
-  // Calculate total quantity of items sold
-  const totalItemsSold = filteredItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
-
-  // Calculate total revenue
-  const totalRevenue = filteredItems.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-
-  // Count unique invoices
-  const uniqueInvoiceCount = new Set(filteredItems.map(item => item.invoiceId)).size;
+  // ✅ Totals from ALL filtered (not just visible)
+  const totalItemsSold = allFilteredItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const totalRevenue = allFilteredItems.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
+  const uniqueInvoiceCount = new Set(allFilteredItems.map(item => item.invoiceId)).size;
 
   // Get unique filter options
   const uniqueCategories = [...new Set(itemsData.map(item => item.category))];
@@ -316,13 +367,12 @@ const EmployeeItemsSold = () => {
           </div>
         )}
 
-        {/* Filters - Always visible */}
+        {/* Filters */}
         <div className="mb-4 bg-white rounded-lg shadow-md overflow-hidden">
           <div className="bg-linear-to-r from-purple-600 to-indigo-600 px-3 sm:px-4 py-2">
             <h2 className="text-xs sm:text-sm font-semibold text-white">Filters</h2>
           </div>
           <div className="p-2 sm:p-3">
-            {/* ✅ Now 6 columns on xl to fit start/end dates */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Item Name</label>
@@ -428,7 +478,6 @@ const EmployeeItemsSold = () => {
         {/* Total Items Sold Display */}
         <div className="mb-4 bg-linear-to-r from-blue-500 to-indigo-600 rounded-lg shadow-lg p-4 sm:p-5 ">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Total Items Sold (Sum of Quantities) */}
             <div className="text-center sm:text-left">
               <h3 className="text-white text-sm sm:text-base font-semibold mb-1">Total Items Sold</h3>
               <div className="mt-2">
@@ -446,7 +495,7 @@ const EmployeeItemsSold = () => {
           <div className="bg-linear-to-r from-blue-600 to-cyan-600 px-3 sm:px-4 py-2 flex justify-between items-center">
             <h2 className="text-xs sm:text-sm font-semibold text-white">Items Sold Details</h2>
             <span className="text-xs text-cyan-100">
-              {filteredItems.length} records found
+              Showing {filteredItems.length} of {allFilteredItems.length}
             </span>
           </div>
 
@@ -454,7 +503,7 @@ const EmployeeItemsSold = () => {
             <div className="flex justify-center items-center py-12 sm:py-16">
               <div className="animate-spin rounded-full h-8 w-8 sm:h-10 sm:w-10 border-b-2 border-blue-600"></div>
             </div>
-          ) : filteredItems.length === 0 ? (
+          ) : allFilteredItems.length === 0 ? (
             <div className="text-center py-8 sm:py-12">
               <span className="text-2xl">📦</span>
               <p className="mt-2 text-sm text-gray-500">No items found matching your filters</p>
@@ -526,7 +575,7 @@ const EmployeeItemsSold = () => {
                       </tr>
                     ))}
                   </tbody>
-                  {/* Summary Footer Row */}
+                  {/* Summary Footer Row (uses ALL filtered totals) */}
                   <tfoot className="bg-gray-100 border-t-2 border-gray-300">
                     <tr>
                       <td colSpan="3" className="px-3 py-2 text-xs font-bold text-gray-700 text-right">
@@ -546,6 +595,22 @@ const EmployeeItemsSold = () => {
                   </tfoot>
                 </table>
               </div>
+
+              {/* ✅ Infinite Scroll Sentinel & Loaders */}
+              <div ref={sentinelRef} className="h-2"></div>
+
+              {loadingMore && (
+                <div className="flex justify-center items-center py-4 bg-gray-50 border-t">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-2"></div>
+                  <span className="text-xs text-gray-600">Loading more...</span>
+                </div>
+              )}
+
+              {!hasMore && filteredItems.length > 0 && (
+                <div className="text-center py-4 bg-gray-50 border-t">
+                  <span className="text-xs text-gray-500">✅ All {allFilteredItems.length} items loaded</span>
+                </div>
+              )}
             </>
           )}
         </div>
