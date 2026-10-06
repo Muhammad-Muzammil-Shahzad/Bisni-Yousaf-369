@@ -21,6 +21,7 @@ const InvoiceUpdate = () => {
     customerMobileNumber1: '',
     customerMobileNumber2: '',
     customerAddress: '',
+    deliveredThrough: '',
     employeeCategory: '',
     employeeName: '',
     employeeAddress: '',
@@ -123,6 +124,7 @@ const InvoiceUpdate = () => {
       customerMobileNumber1: invoice.customerMobileNumber1 || '',
       customerMobileNumber2: invoice.customerMobileNumber2 || '',
       customerAddress: invoice.customerAddress || '',
+      deliveredThrough: invoice.deliveredThrough || '',
       employeeCategory: invoice.employeeCategory || '',
       employeeName: invoice.employeeName || '',
       employeeAddress: invoice.employeeAddress || '',
@@ -255,6 +257,7 @@ const InvoiceUpdate = () => {
         customerMobileNumber1: formData.customerMobileNumber1,
         customerMobileNumber2: formData.customerMobileNumber2,
         customerAddress: formData.customerAddress,
+        deliveredThrough: formData.deliveredThrough || '',
         employeeCategory: formData.employeeCategory,
         employeeName: formData.employeeName,
         employeeAddress: formData.employeeAddress,
@@ -294,8 +297,8 @@ const InvoiceUpdate = () => {
     setSelectedInvoice(null);
     setFormData({
       customerName: '', customerMobileNumber1: '', customerMobileNumber2: '',
-      customerAddress: '', employeeCategory: '', employeeName: '',
-      employeeAddress: '', employeeMobileNumber: '',
+      customerAddress: '', deliveredThrough: '', employeeCategory: '',
+      employeeName: '', employeeAddress: '', employeeMobileNumber: '',
       products: [], deliveryCharges: 0, grandTotalAmount: 0
     });
     setError(null);
@@ -530,6 +533,16 @@ const InvoiceUpdate = () => {
                     <label className="block text-2xs xs:text-xs font-medium text-gray-700 mb-1">Address *</label>
                     <input type="text" name="customerAddress" value={formData.customerAddress || ''} onChange={handleInputChange} required
                       className="w-full px-2 sm:px-2.5 py-1.5 border border-gray-300 rounded-md text-xs" />
+                  </div>
+                  <div>
+                    <label className="block text-2xs xs:text-xs font-medium text-gray-700 mb-1">Delivered Through</label>
+                    <select name="deliveredThrough" value={formData.deliveredThrough || ''} onChange={handleInputChange}
+                      className="w-full px-2 sm:px-2.5 py-1.5 border border-gray-300 rounded-md text-xs">
+                      <option value="">Select delivery method</option>
+                      <option value="TCS">TCS</option>
+                      <option value="M&P">M&P</option>
+                      <option value="P/O">P/O</option>
+                    </select>
                   </div>
                 </div>
               </div>
