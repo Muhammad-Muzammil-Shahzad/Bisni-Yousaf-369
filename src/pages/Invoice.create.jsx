@@ -21,6 +21,7 @@ const InvoiceCreate = () => {
     customerMobileNumber1: '',
     customerMobileNumber2: '',
     customerAddress: '',
+    deliveredThrough: '',
     products: [],
     deliveryCharges: 0
   });
@@ -260,6 +261,7 @@ const InvoiceCreate = () => {
         customerMobileNumber1: formData.customerMobileNumber1,
         customerMobileNumber2: formData.customerMobileNumber2 || '',
         customerAddress: formData.customerAddress,
+        deliveredThrough: formData.deliveredThrough || '',
         products: formattedProducts,
         deliveryCharges: parseFloat(formData.deliveryCharges) || 0,
         grandTotalAmount: calculateGrandTotal()
@@ -279,6 +281,7 @@ const InvoiceCreate = () => {
         customerMobileNumber1: '',
         customerMobileNumber2: '',
         customerAddress: '',
+        deliveredThrough: '',
         products: [],
         deliveryCharges: 0
       });
@@ -479,6 +482,19 @@ const InvoiceCreate = () => {
                       className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900 placeholder-gray-400" />
                   </div>
                   <div>
+                    <label htmlFor="deliveredThrough" className="block text-xs font-medium text-gray-700 mb-1">
+                      Delivered Through <span className="text-red-500">*</span>
+                    </label>
+                    <select id="deliveredThrough" name="deliveredThrough" value={formData.deliveredThrough || ''}
+                      onChange={handleInputChange} required
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900">
+                      <option value="">Select delivery method</option>
+                      <option value="TCS">TCS</option>
+                      <option value="M&P">M&P</option>
+                      <option value="P/O">P/O</option>
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
                     <label htmlFor="customerAddress" className="block text-xs font-medium text-gray-700 mb-1">
                       Customer Address <span className="text-red-500">*</span>
                     </label>
@@ -596,8 +612,6 @@ const InvoiceCreate = () => {
                               ))}
                             </select>
                           </div>
-
-                          {/* Stock Info - Removed as requested */}
 
                           {/* Sale Price */}
                           <div>
