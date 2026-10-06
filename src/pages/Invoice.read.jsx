@@ -87,6 +87,7 @@ const InvoiceRead = () => {
     startDate: '',
     endDate: '',
     employeeName: '',
+    deliveredThrough: '',
   });
 
   // ✅ Refs for infinite scroll
@@ -214,7 +215,8 @@ const InvoiceRead = () => {
       date: '',
       startDate: '',
       endDate: '',
-      employeeName: ''
+      employeeName: '',
+      deliveredThrough: ''
     });
     fetchInvoices();
   };
@@ -383,20 +385,27 @@ const InvoiceRead = () => {
         </table>
       </div>
 
-      <table style="width:100%;border-collapse:collapse;font-size:18px;font-family:Arial, sans-serif;margin-top:10px;">
-        <tr>
-          <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">To</td>
-          <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">${inv.customerName || 'N/A'}</td>
-        </tr>
-        <tr>
-          <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">Contact</td>
-          <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">${inv.customerMobileNumber1 || 'N/A'} &nbsp;&nbsp;&nbsp; || &nbsp;&nbsp;&nbsp; ${inv.customerMobileNumber2 || 'N/A'}</td>
-        </tr>
-        <tr>
-          <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">Address</td>
-          <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">${inv.customerAddress || 'N/A'}</td>
-        </tr>
-      </table>
+      <div style="position:relative;margin-top:10px;">
+        <table style="width:100%;border-collapse:collapse;font-size:18px;font-family:Arial, sans-serif;margin-top:10px;">
+          <tr>
+            <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">To</td>
+            <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">${inv.customerName || 'N/A'}</td>
+          </tr>
+          <tr>
+            <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">Contact</td>
+            <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">${inv.customerMobileNumber1 || 'N/A'} &nbsp;&nbsp;&nbsp; || &nbsp;&nbsp;&nbsp; ${inv.customerMobileNumber2 || 'N/A'}</td>
+          </tr>
+          <tr>
+            <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">Address</td>
+            <td style="border:2px solid #000; padding:2px 3px; font-weight:bold; font-size: 22px; font-family: sans-serif;">${inv.customerAddress || 'N/A'}</td>
+          </tr>
+        </table>
+        <div style="position:absolute; right:-70px; top:0; height:100%; display:flex; align-items:center; justify-content:center;">
+          <span style="writing-mode:vertical-rl; transform:rotate(180deg); font-size:20px; font-weight:bold; font-family:Arial, sans-serif; white-space:nowrap;">
+            ${inv.deliveredThrough || 'N/A'}
+          </span>
+        </div>
+      </div>
 
       <table style="width:100%;border-collapse:collapse;font-size:18px;font-family:Arial, sans-serif;margin-top:10px;">
         <tr>
@@ -464,6 +473,7 @@ const InvoiceRead = () => {
           <td>${inv.invoiceId}</td>
           <td>${formatDt(inv.createdAt)}</td>
           <td>${inv.customerName || 'N/A'}</td>
+          <td>${inv.deliveredThrough || 'N/A'}</td>
           <td style="text-align:right;">Rs. ${formatCur(commission)}</td>
           <td style="text-align:right;">Rs. ${formatCur(inv.grandTotalAmount || 0)}</td>
         </tr>
@@ -525,6 +535,7 @@ const InvoiceRead = () => {
               <th>Invoice ID</th>
               <th>Date</th>
               <th>Customer</th>
+              <th>D/T</th>
               <th style="text-align:right;">Commission</th>
               <th style="text-align:right;">Total Amount</th>
             </tr>
@@ -656,6 +667,16 @@ const InvoiceRead = () => {
                   className="w-full px-2 sm:px-2.5 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-xs" />
               </div>
               <div>
+                <label className="block text-2xs xs:text-xs font-medium text-gray-700 mb-1">Delivered Through</label>
+                <select name="deliveredThrough" value={filters.deliveredThrough} onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-2.5 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-xs">
+                  <option value="">All</option>
+                  <option value="TCS">TCS</option>
+                  <option value="M&P">M&P</option>
+                  <option value="P/O">P/O</option>
+                </select>
+              </div>
+              <div>
                 <label className="block text-2xs xs:text-xs font-medium text-gray-700 mb-1">Specific Date</label>
                 <input type="date" name="date" value={filters.date} onChange={handleFilterChange}
                   className="w-full px-2 sm:px-2.5 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-xs" />
@@ -757,6 +778,10 @@ const InvoiceRead = () => {
                         <span className="text-gray-500">Items: </span>
                         <span className="font-medium">{calculateTotalItems(invoice.products)}</span>
                       </div>
+                      <div>
+                        <span className="text-gray-500">D/T: </span>
+                        <span className="font-medium">{invoice.deliveredThrough || 'N/A'}</span>
+                      </div>
                     </div>
                     <div className="flex gap-1.5">
                       <button onClick={() => handleViewInvoice(invoice)}
@@ -780,6 +805,7 @@ const InvoiceRead = () => {
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">Customer</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase hidden lg:table-cell">Employee</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">D/T</th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase hidden xl:table-cell">Items</th>
                     <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Grand Total</th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase w-20">Actions</th>
@@ -800,6 +826,11 @@ const InvoiceRead = () => {
                       <td className="px-3 py-2 whitespace-nowrap hidden lg:table-cell">
                         <div className="text-xs text-gray-900">{invoice.employeeName}</div>
                         <div className="text-xs text-gray-500">{invoice.employeeCategory}</div>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-center">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                          {invoice.deliveredThrough || 'N/A'}
+                        </span>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-center hidden xl:table-cell">
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -891,6 +922,7 @@ const InvoiceRead = () => {
                     <div className="space-y-1 text-xs">
                       <p><span className="text-gray-500">Name:</span> <span className="font-medium break-words">{selectedInvoice.customerName}</span></p>
                       <p><span className="text-gray-500">Mobile:</span> <span className="font-medium break-words">{selectedInvoice.customerMobileNumber1}</span></p>
+                      <p><span className="text-gray-500">D/T:</span> <span className="font-medium break-words">{selectedInvoice.deliveredThrough || 'N/A'}</span></p>
                     </div>
                   </div>
                 </div>
