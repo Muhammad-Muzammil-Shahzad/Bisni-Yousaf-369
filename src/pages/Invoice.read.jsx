@@ -669,6 +669,7 @@ const InvoiceRead = () => {
                 <select name="deliveredThrough" value={filters.deliveredThrough} onChange={handleFilterChange}
                   className="w-full px-2 sm:px-2.5 py-1.5 border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 text-xs">
                   <option value="">All</option>
+                  <option value="By Hand">By Hand</option>
                   <option value="TCS">TCS</option>
                   <option value="M&P">M&P</option>
                   <option value="P/O">P/O</option>
