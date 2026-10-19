@@ -539,7 +539,7 @@ const InvoiceUpdate = () => {
                     <select name="deliveredThrough" value={formData.deliveredThrough || ''} onChange={handleInputChange}
                       className="w-full px-2 sm:px-2.5 py-1.5 border border-gray-300 rounded-md text-xs">
                       <option value="">Select delivery method</option>
-                      <option value="byhand">By Hand</option>
+                      <option value="By Hand">By Hand</option>
                       <option value="TCS">TCS</option>
                       <option value="M&P">M&P</option>
                       <option value="P/O">P/O</option>
