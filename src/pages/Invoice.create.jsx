@@ -489,6 +489,7 @@ const InvoiceCreate = () => {
                       onChange={handleInputChange} required
                       className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200 text-gray-900">
                       <option value="">Select delivery method</option>
+                      <option value="byhand">By Hand</option>
                       <option value="TCS">TCS</option>
                       <option value="M&P">M&P</option>
                       <option value="P/O">P/O</option>
